@@ -2,3 +2,4 @@ state_encoder_3d_env
 *.egg-info
 .vscode
 mnist_data
+__pycache__

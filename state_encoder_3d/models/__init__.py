@@ -1,2 +1,2 @@
-from .image_encoder import CompNeRFImageEncoder
+from .image_encoder import CompNeRFSingleImageEncoder
 from .image_decoder import CNNImageDecoder
