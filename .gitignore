@@ -1,3 +1,4 @@
-3d_state_encoder_env
+state_encoder_3d_env
 *.egg-info
 .vscode
+mnist_data

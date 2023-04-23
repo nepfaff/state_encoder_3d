@@ -1,14 +1,16 @@
 from distutils.core import setup
 
 setup(
-    name="3d_state_encoder",
+    name="state_encoder_3d",
     version="0.0.0",
-    packages=["3d_state_encoder"],
+    packages=["state_encoder_3d"],
     install_requires=[
         "torch",
         "hydra-core",
         "wandb",
         "omegaconf",
         "tqdm",
+        "matplotlib",
+        "einops",
     ],
 )

@@ -6,15 +6,15 @@ Clone the repo and execute the following commands from the repository's root.
 
 Create a virtual environment:
 ```
-python -m venv 3d_state_encoder_env
+python -m venv state_encoder_3d_env
 ```
 
 Activate the environment:
 ```
-source 3d_state_encoder_env/bin/activate
+source state_encoder_3d_env/bin/activate
 ```
 
-Install the `3d_state_encoder` package in development mode:
+Install the `state_encoder_3d` package in development mode:
 ```
 pip install -e .
 ```
