@@ -1,2 +1,3 @@
 3d_state_encoder_env
 *.egg-info
+.vscode
