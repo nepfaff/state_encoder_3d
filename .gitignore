@@ -1,5 +1,6 @@
 state_encoder_3d_env
 *.egg-info
 .vscode
-mnist_data
-__pycache__
+notebooks/mnist_data
+**/__pycache__
+notebooks/cars_train.hdf5

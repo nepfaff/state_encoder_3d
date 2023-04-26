@@ -12,5 +12,7 @@ setup(
         "tqdm",
         "matplotlib",
         "einops",
+        "scikit-image",
+        "h5py",
     ],
 )
