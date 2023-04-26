@@ -32,8 +32,8 @@ class CompNeRFStateEncoder(nn.Module):
     def forward(self, input: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
         input: A dict with the keys:
-            - "images": Images of shape (B,N,H,W).
-            - "extrinsics": Extrinsics matrices of shape (B,N,4,4).
+            - "images": Images of shape (B,N,3,H,W).
+            - "extrinsics": Extrinsics cam2world matrices of shape (B,N,4,4).
         return: Latent of shape (B,D).
         """
         images = input["images"]
