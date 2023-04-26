@@ -226,7 +226,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        B, C, H, W = x.size()
+        batch_dims = x.shape[:-3]
 
         x = self.conv1(x)
         x = self.bn1(x)
@@ -238,7 +238,7 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = x.reshape(B, -1)
+        x = x.reshape(*batch_dims, -1)
 
         return x
 

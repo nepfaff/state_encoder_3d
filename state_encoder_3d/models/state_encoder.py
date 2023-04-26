@@ -37,9 +37,13 @@ class CompNeRFStateEncoder(nn.Module):
         return: Latent of shape (B,D).
         """
         images = input["images"]
-        extrinsics = input["extrinsics"].view(*images.shape[:-2], -1)
+        assert len(images.shape) == 5
+        B, N = images.shape[:2]
+        extrinsics = input["extrinsics"].view(B, N, 16)
 
+        images = images.reshape(-1, *images.shape[-3:])
         image_embeddings = self._image_encoder(images)  # Shape (B,N,D)
+        image_embeddings = image_embeddings.view(B, N, -1)
 
         embeddings = torch.cat(
             [image_embeddings, extrinsics], dim=-1
@@ -51,6 +55,6 @@ class CompNeRFStateEncoder(nn.Module):
         embedding1 = self._mlp2(embedding)  # Shape (B,D)
 
         # Normalize to have unit L2 norm
-        normalized_embedding = embedding1 / (embedding1.norm(dim=-1) + 1e-9)
+        normalized_embedding = embedding1 / (embedding1.norm(dim=-1, keepdim=True) + 1e-9)
 
         return normalized_embedding
