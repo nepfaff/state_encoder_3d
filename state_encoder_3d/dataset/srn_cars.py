@@ -54,6 +54,7 @@ class SRNsCarsDataset(IterableDataset):
         img_sidelength=None,
         num_views: int = 1,
         rand_views: bool = True,
+        cars_path: str = "cars_train.hdf5",
     ):
         """
         Args:
@@ -64,7 +65,7 @@ class SRNsCarsDataset(IterableDataset):
             rand_views (bool, optional): If true, sample random views. Otherwise, always
                 return the first 'num_views' for the instance.
         """
-        self._file = h5py.File("cars_train.hdf5", "r")
+        self._file = h5py.File(cars_path, "r")
         self._instances = sorted(list(self._file.keys()))
 
         self._img_sidelength = img_sidelength
