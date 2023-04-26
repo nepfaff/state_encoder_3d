@@ -10,4 +10,4 @@ module load anaconda/2022b
 module load cuda/11.6
 
 # Replace this with the desired script
-bash scripts/train_srn_ae.py
+python scripts/train_srn_ae.py

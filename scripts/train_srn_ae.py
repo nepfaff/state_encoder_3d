@@ -14,6 +14,7 @@ from state_encoder_3d.dataset import SRNsCarsDataset
 
 OUT_PATH = f"outputs/srn_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
 
+
 def save(name, step, model, optim):
     save_name = f"{name}_{step}"
     path = os.path.join(OUT_PATH, save_name)
@@ -26,9 +27,10 @@ def save(name, step, model, optim):
         path,
     )
 
+
 def main():
     if not os.path.exists(OUT_PATH):
-        os.mkdir(OUT_PATH)
+        os.makedirs(OUT_PATH)
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
@@ -38,14 +40,14 @@ def main():
     print(f"Using device {device}")
 
     img_sl = 64
-    batch_size = 1
+    batch_size = 2
     num_views = 10
     dataset = SRNsCarsDataset(
         max_num_instances=None,
         img_sidelength=img_sl,
         num_views=num_views,
         rand_views=True,
-        cars_path="../notebooks/cars_train.hdf5",
+        cars_path="notebooks/cars_train.hdf5",
     )
     dataloader = iter(torch.utils.data.DataLoader(dataset, batch_size=batch_size))
 
@@ -115,7 +117,7 @@ def main():
 
         if not step % steps_til_summary:
             print(f"Step {step}: loss = {float(loss.detach().cpu()):.5f}")
-            
+
             save(name="encoder", step=step, model=encoder, optim=encoder_optim)
             save(name="nerf", step=step, model=nerf, optim=nerf_optim)
 
