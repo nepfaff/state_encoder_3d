@@ -103,7 +103,7 @@ def main():
         ).reshape(batch_size * num_img_decoded, -1)
         rgb, depth = renderer(c2w_decoded, intrinsics, xy_pix, nerf, latent)
 
-        gt_decoded_image = gt_image[:, -num_img_decoded:].view(
+        gt_decoded_image = gt_image[:, -num_img_decoded:].reshape(
             batch_size * num_img_decoded, *gt_image.shape[-2:]
         )
 
