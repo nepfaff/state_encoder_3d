@@ -20,11 +20,6 @@ OUT_PATH = f"outputs/srn_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
 
 
 def save(name, step, model, optim):
-    # Remove old checkpoints
-    shutil.rmtree(OUT_PATH)
-    os.mkdir(OUT_PATH)
-
-    # Save new weights
     save_name = f"{name}_{step}"
     path = os.path.join(OUT_PATH, save_name)
     torch.save(
@@ -151,6 +146,11 @@ def main():
         if not step % steps_til_summary:
             print(f"Step {step}: loss = {float(loss.detach().cpu()):.5f}")
 
+            # Remove old checkpoints
+            shutil.rmtree(OUT_PATH)
+            os.mkdir(OUT_PATH)
+            
+            # Save new weights
             save(name="encoder", step=step, model=encoder, optim=encoder_optim)
             save(name="nerf", step=step, model=nerf, optim=nerf_optim)
 
