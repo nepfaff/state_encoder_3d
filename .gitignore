@@ -4,3 +4,5 @@ state_encoder_3d_env
 notebooks/mnist_data
 **/__pycache__
 notebooks/cars_train.hdf5
+outputs/
+wandb/

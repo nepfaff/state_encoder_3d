@@ -3,6 +3,10 @@ from tqdm import tqdm
 import einops
 import time
 import os
+import shutil
+
+import wandb
+import matplotlib.pyplot as plt
 
 from state_encoder_3d.models import (
     LatentNeRF,
@@ -16,6 +20,11 @@ OUT_PATH = f"outputs/srn_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
 
 
 def save(name, step, model, optim):
+    # Remove old checkpoints
+    shutil.rmtree(OUT_PATH)
+    os.mkdir(OUT_PATH)
+
+    # Save new weights
     save_name = f"{name}_{step}"
     path = os.path.join(OUT_PATH, save_name)
     torch.save(
@@ -28,7 +37,29 @@ def save(name, step, model, optim):
     )
 
 
+def plot_output_ground_truth(img, depth, gt_img, resolution):
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6), squeeze=False)
+    axes[0, 0].imshow(img.cpu().view(*resolution).detach().numpy())
+    axes[0, 0].set_title("Trained MLP")
+    axes[0, 1].imshow(gt_img.cpu().view(*resolution).detach().numpy())
+    axes[0, 1].set_title("Ground Truth")
+
+    depth = depth.cpu().view(*resolution[:2]).detach().numpy()
+    axes[0, 2].imshow(depth, cmap="Greys")
+    axes[0, 2].set_title("Depth")
+
+    for i in range(3):
+        axes[0, i].set_axis_off()
+
+    return fig
+
+
 def main():
+    current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
+    wandb.init(
+        project="state_encoder_3d", name=f"train_srn_ae_{current_time}", mode="offline"
+    )
+
     if not os.path.exists(OUT_PATH):
         os.makedirs(OUT_PATH)
 
@@ -71,8 +102,9 @@ def main():
     num_img_encoded = 8
     num_img_decoded = 2
 
-    num_steps = 500001
-    steps_til_summary = 500
+    num_steps = 100001
+    steps_til_summary = 1000
+    steps_til_plot = 5000
     for step in tqdm(range(num_steps)):
         model_input, gt_image = next(dataloader)
         xy_pix = model_input["x_pix"].to(device)
@@ -108,6 +140,7 @@ def main():
         )
 
         loss = img2mse(rgb, gt_decoded_image)
+        wandb.log({"loss": loss.item()})
 
         encoder_optim.zero_grad()
         nerf_optim.zero_grad()
@@ -120,6 +153,12 @@ def main():
 
             save(name="encoder", step=step, model=encoder, optim=encoder_optim)
             save(name="nerf", step=step, model=nerf, optim=nerf_optim)
+
+        if not step % steps_til_plot:
+            fig = plot_output_ground_truth(
+                rgb[0], depth[0], gt_decoded_image[0], resolution=(img_sl, img_sl, 3)
+            )
+            wandb.log({f"step_{step}": fig})
 
 
 if __name__ == "__main__":
