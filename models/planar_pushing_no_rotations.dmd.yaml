@@ -1,0 +1,27 @@
+directives:
+- add_model:
+    name: box
+    file: package://state_encoder_3d/models/box_no_rotations.urdf
+- add_model:
+    name: sphere
+    file: package://state_encoder_3d/models/sphere.urdf
+- add_model:
+    name: floor
+    file: package://state_encoder_3d/models/floor.urdf
+- add_weld:
+    parent: world
+    child: floor::floor
+    X_PC:
+        translation: [0.0, 0.0, -0.5]
+- add_frame:
+    name: camera0_origin
+    X_PF:
+        base_frame: world
+        rotation: !Rpy { deg: [180, 0, 0]}
+        translation: [0, 0, 10]
+- add_model:
+    name: camera0
+    file: package://manipulation/camera_box.sdf
+- add_weld:
+    parent: camera0_origin
+    child: camera0::base

@@ -14,5 +14,7 @@ setup(
         "einops",
         "scikit-image",
         "h5py",
+        "pyvirtualdisplay",
+        "manipulation",
     ],
 )
