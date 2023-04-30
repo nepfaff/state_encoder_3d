@@ -34,7 +34,9 @@ def save(name, step, model, optim):
 def main():
     current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     wandb.init(
-        project="state_encoder_3d", name=f"train_srn_ae_{current_time}", mode="offline"
+        project="state_encoder_3d",
+        name=f"train_cube_nerf_{current_time}",
+        mode="offline",
     )
 
     if not os.path.exists(OUT_PATH):
