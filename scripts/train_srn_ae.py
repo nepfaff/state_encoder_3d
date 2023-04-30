@@ -15,6 +15,7 @@ from state_encoder_3d.models import (
     init_weights_normal,
 )
 from state_encoder_3d.dataset import SRNsCarsDataset
+from state_encoder_3d.utils import plot_output_ground_truth
 
 OUT_PATH = f"outputs/srn_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
 
@@ -30,23 +31,6 @@ def save(name, step, model, optim):
         },
         path,
     )
-
-
-def plot_output_ground_truth(img, depth, gt_img, resolution):
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6), squeeze=False)
-    axes[0, 0].imshow(img.cpu().view(*resolution).detach().numpy())
-    axes[0, 0].set_title("Trained MLP")
-    axes[0, 1].imshow(gt_img.cpu().view(*resolution).detach().numpy())
-    axes[0, 1].set_title("Ground Truth")
-
-    depth = depth.cpu().view(*resolution[:2]).detach().numpy()
-    axes[0, 2].imshow(depth, cmap="Greys")
-    axes[0, 2].set_title("Depth")
-
-    for i in range(3):
-        axes[0, i].set_axis_off()
-
-    return fig
 
 
 def main():
@@ -149,7 +133,7 @@ def main():
             # Remove old checkpoints
             shutil.rmtree(OUT_PATH)
             os.mkdir(OUT_PATH)
-            
+
             # Save new weights
             save(name="encoder", step=step, model=encoder, optim=encoder_optim)
             save(name="nerf", step=step, model=nerf, optim=nerf_optim)

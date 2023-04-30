@@ -114,8 +114,8 @@ class PlanarCubeEnvironment:
             )
 
         X_CW = generate_camera_poses(
-            z_distances=[3.0, 6.0, 8.0, 12.0],
-            radii=[14.0, 12.0, 8.0, 0.0],
+            z_distances=[6.0, 8.0, 10, 12.0],
+            radii=[12.0, 8.0, 4.0, 0.0],
             num_poses=[10, 10, 5, 1],
         )
         # The planar cube env already contains one camera
@@ -305,7 +305,7 @@ class PlanarCubeEnvironment:
                     context=self._simulator.get_context(),
                 )
                 views.append(image)
-                
+
             finger_positions.append(finger_pos)
             box_positions.append(box_pos)
             images.append(views)
