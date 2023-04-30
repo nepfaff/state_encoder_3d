@@ -5,20 +5,26 @@ import shutil
 import numpy as np
 from manipulation.utils import AddPackagePaths
 from pydrake.all import (
-    StartMeshcat,
     DiagramBuilder,
     AddMultibodyPlantSceneGraph,
     RigidTransform,
-    MeshcatVisualizer,
     Simulator,
-    MeshcatVisualizerParams,
     Role,
     MultibodyPlant,
     Parser,
+    CameraInfo,
+    DepthRenderCamera,
+    RenderCameraCore,
+    ClippingRange,
+    DepthRange,
+    RgbdSensor,
+    MakeRenderEngineGl,
+    RenderEngineGlParams,
 )
 import zarr
 
-from .images import ImageGenerator, AddRgbdSensors
+from .images import ImageGenerator
+from .camera_poses import generate_camera_poses
 
 
 def get_parser(plant: MultibodyPlant) -> Parser:
@@ -34,21 +40,93 @@ class PlanarCubeEnvironment:
         self,
         time_step: float,
         scene_directive_path: str,
-        num_cameras: int,
-        initial_box_position: List[float],
-        initial_finger_position: List[float],
-        min_pos: float = -1.5,
-        max_pos: float = 1.5,
+        min_pos: float = -4.5,
+        max_pos: float = 4.5,
     ):
         self._time_step = time_step
         self._scene_directive_path = scene_directive_path
-        self._num_cameras = num_cameras
-        self._initial_box_position = initial_box_position
-        self._initial_finger_position = initial_finger_position
         self._min_pos = min_pos
         self._max_pos = max_pos
 
+        # Camera intrinsics
+        self._camera_info = CameraInfo(width=128, height=128, fov_y=np.pi / 3.0)
+        self._intrinsics = np.array(
+            [
+                [self._camera_info.focal_x(), 0.0, self._camera_info.center_x()],
+                [0.0, self._camera_info.focal_y(), self._camera_info.center_y()],
+                [0.0, 0.0, 1.0],
+            ]
+        )
+
         self._setup()
+
+    def _add_cameras(
+        self, camera_poses: np.ndarray, camera_info: CameraInfo, starting_cam_idx: int
+    ) -> None:
+        """
+        Adds depth cameras to the scene.
+        :param camera_poses: Homogenous world2cam transforms of shape (n,4,4) where n is
+            the number of camera poses. OpenCV convention.
+        """
+        parent_frame_id = self._scene_graph.world_frame_id()
+        for i, X_CW in enumerate(camera_poses):
+            i += starting_cam_idx
+            depth_camera = DepthRenderCamera(
+                RenderCameraCore(
+                    self._renderer,
+                    camera_info,
+                    ClippingRange(near=0.1, far=150.0),
+                    RigidTransform(),
+                ),
+                DepthRange(0.1, 10.0),
+            )
+            rgbd = self._builder.AddSystem(
+                RgbdSensor(
+                    parent_id=parent_frame_id,
+                    X_PB=RigidTransform(np.linalg.inv(X_CW)),
+                    depth_camera=depth_camera,
+                    show_window=False,
+                )
+            )
+            self._builder.Connect(
+                self._scene_graph.get_query_output_port(),
+                rgbd.query_object_input_port(),
+            )
+
+            # Export the camera outputs
+            self._builder.ExportOutput(
+                rgbd.color_image_output_port(), f"camera{i}_rgb_image"
+            )
+            self._builder.ExportOutput(
+                rgbd.depth_image_32F_output_port(), f"camera{i}_depth_image"
+            )
+            self._builder.ExportOutput(
+                rgbd.label_image_output_port(), f"camera{i}_label_image"
+            )
+
+    def _setup_cameras(self) -> None:
+        # Add renderer
+        self._renderer = "PlanarCubeEnvRenderer"
+        if not self._scene_graph.HasRenderer(self._renderer):
+            self._scene_graph.AddRenderer(
+                self._renderer, MakeRenderEngineGl(RenderEngineGlParams())
+            )
+
+        X_CW = generate_camera_poses(
+            z_distances=[0.0, 6.0, 8.0, 12.0],
+            radii=[10.0, 7.0, 4.0, 0.0],
+            num_poses=[10, 10, 5, 1],
+        )
+        # The planar cube env already contains one camera
+        self._add_cameras(
+            camera_poses=X_CW, camera_info=self._camera_info, starting_cam_idx=0
+        )
+
+        self._num_cameras = len(X_CW)
+        self._world2cam_matrices = X_CW
+        self._intrinsics_matrices = np.repeat(
+            self._intrinsics[np.newaxis, :, :], repeats=self._num_cameras, axis=0
+        )
 
     def _set_env_state(self, finger_pos: List[float], box_pos: List[float]) -> None:
         # Set box position
@@ -81,15 +159,15 @@ class PlanarCubeEnvironment:
         # self._meshcat = StartMeshcat()
 
         # Setup environment
-        builder = DiagramBuilder()
+        self._builder = DiagramBuilder()
         self._plant, self._scene_graph = AddMultibodyPlantSceneGraph(
-            builder, time_step=self._time_step
+            self._builder, time_step=self._time_step
         )
         parser = get_parser(self._plant)
         parser.AddAllModelsFromFile(self._scene_directive_path)
         self._plant.Finalize()
 
-        AddRgbdSensors(builder, self._plant, self._scene_graph)
+        self._setup_cameras()
 
         # visualizer_params = MeshcatVisualizerParams()
         # visualizer_params.role = Role.kIllustration
@@ -100,19 +178,13 @@ class PlanarCubeEnvironment:
         #     visualizer_params,
         # )
 
-        diagram = builder.Build()
+        diagram = self._builder.Build()
         self._simulator = Simulator(diagram)
 
         # Set up image generator
         self._image_generator = ImageGenerator(
             max_depth_range=10.0, diagram=diagram, scene_graph=self._scene_graph
         )
-
-        self._set_env_state(
-            finger_pos=self._initial_finger_position, box_pos=self._initial_box_position
-        )
-        if not self._is_env_state_feasible():
-            raise RuntimeError("Initial env state is infeasible.")
 
     def _is_env_state_feasible(self) -> bool:
         """Returns false if the finger is inside the box and true otherwise."""
@@ -143,6 +215,8 @@ class PlanarCubeEnvironment:
         images: np.ndarray,
         finger_positions: np.ndarray,
         box_positions: np.ndarray,
+        intrinsics: np.ndarray,
+        world2cams: np.ndarray,
     ) -> None:
         if os.path.exists(path):
             print(
@@ -158,6 +232,10 @@ class PlanarCubeEnvironment:
         finger_pos_store[:] = finger_positions
         box_pos_store = root.zeros_like("box_positions", box_positions)
         box_pos_store[:] = box_positions
+        intrinsics_store = root.zeros_like("intrinsics", intrinsics)
+        intrinsics_store[:] = intrinsics
+        world2cams_store = root.zeros_like("world2cams", world2cams)
+        world2cams_store[:] = world2cams
 
     def generate_sample_dataset(self, dataset_path: str, num_samples: int) -> None:
         finger_positions = []  # Shape (N, 2)
@@ -191,9 +269,70 @@ class PlanarCubeEnvironment:
         finger_positions = np.asarray(finger_positions)
         box_positions = np.asarray(box_positions)
         images = np.asarray(images)
+        intrinsics = np.repeat(
+            self._intrinsics_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
+        )
+        world2cams = np.repeat(
+            self._world2cam_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
+        )
 
-        self._save_dataset(dataset_path, images, finger_positions, box_positions)
+        self._save_dataset(
+            dataset_path,
+            images,
+            finger_positions,
+            box_positions,
+            intrinsics,
+            world2cams,
+        )
 
-    def generate_grid_dataset(self) -> None:
-        # TODO: Implement discrete grid search over state-space
-        pass
+    def generate_grid_dataset(self, dataset_path: str) -> None:
+        # Discretization based on shape width of 1m
+        shape_width = 1.0
+        num_steps = (self._max_pos - self._min_pos) / shape_width
+        samples_1d = np.linspace(self._min_pos, self._max_pos, num_steps)
+        samples_4d = np.stack(
+            np.meshgrid(samples_1d, samples_1d, samples_1d, samples_1d, indexing="ij"),
+            axis=-1,
+        ).view(-1, 4)
+
+        finger_positions = []  # Shape (N, 2)
+        box_positions = []  # Shape (N, 2)
+        images = []  # Shape (N, num_views, W, H, C)
+        for sample in samples_4d:
+            finger_pos = sample[:2]
+            box_pos = sample[2:]
+            self._set_env_state(finger_pos=finger_pos, box_pos=box_pos)
+
+            if not self._is_env_state_feasible():
+                continue
+
+            views = []
+            for cam_idx in range(self._num_cameras):
+                image, _, _, _ = self._image_generator.get_camera_data(
+                    camera_name=f"camera{cam_idx}",
+                    context=self._simulator.get_context(),
+                )
+                views.append(image)
+
+            finger_positions.append(finger_pos)
+            box_positions.append(box_pos)
+            images.append(views)
+
+        finger_positions = np.asarray(finger_positions)
+        box_positions = np.asarray(box_positions)
+        images = np.asarray(images)
+        intrinsics = np.repeat(
+            self._intrinsics_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
+        )
+        world2cams = np.repeat(
+            self._world2cam_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
+        )
+
+        self._save_dataset(
+            dataset_path,
+            images,
+            finger_positions,
+            box_positions,
+            intrinsics,
+            world2cams,
+        )

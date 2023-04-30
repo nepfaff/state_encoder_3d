@@ -17,5 +17,7 @@ setup(
         "pyvirtualdisplay",
         "manipulation",
         "zarr",
+        "open3d",
+        "pytorch3d",
     ],
 )
