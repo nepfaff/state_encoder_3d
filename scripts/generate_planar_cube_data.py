@@ -6,7 +6,8 @@ def main():
         time_step=1e-3,
         scene_directive_path="models/planar_cube.dmd.yaml",
     )
-    env.generate_sample_dataset("data/planar_cube_sample.zarr", 1000)
+    # env.generate_sample_dataset("data/planar_cube_sample.zarr", 1000)
+    env.generate_grid_dataset("data/planar_cube_grid.zarr")
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ from pydrake.all import (
     RenderEngineGlParams,
 )
 import zarr
+from tqdm import tqdm
 
 from .images import ImageGenerator
 from .camera_poses import generate_camera_poses
@@ -241,7 +242,7 @@ class PlanarCubeEnvironment:
         finger_positions = []  # Shape (N, 2)
         box_positions = []  # Shape (N, 2)
         images = []  # Shape (N, num_views, W, H, C)
-        for _ in range(num_samples):
+        for _ in tqdm(range(num_samples)):
             # Set random scene state
             finger_pos = (self._max_pos - self._min_pos) * np.random.random_sample(
                 2
@@ -288,17 +289,17 @@ class PlanarCubeEnvironment:
     def generate_grid_dataset(self, dataset_path: str) -> None:
         # Discretization based on shape width of 1m
         shape_width = 1.0
-        num_steps = (self._max_pos - self._min_pos) / shape_width
+        num_steps = int((self._max_pos - self._min_pos) / shape_width)
         samples_1d = np.linspace(self._min_pos, self._max_pos, num_steps)
         samples_4d = np.stack(
             np.meshgrid(samples_1d, samples_1d, samples_1d, samples_1d, indexing="ij"),
             axis=-1,
-        ).view(-1, 4)
+        ).reshape(-1, 4)
 
         finger_positions = []  # Shape (N, 2)
         box_positions = []  # Shape (N, 2)
         images = []  # Shape (N, num_views, W, H, C)
-        for sample in samples_4d:
+        for sample in tqdm(samples_4d):
             finger_pos = sample[:2]
             box_pos = sample[2:]
             self._set_env_state(finger_pos=finger_pos, box_pos=box_pos)
