@@ -33,7 +33,7 @@ def AddRgbdSensors(
     model_instance_prefix="camera",
     depth_camera=None,
     renderer=None,
-    resolution=(1000, 1000),# (128,128)
+    resolution=(128, 128),
 ):
     """
     Adds a RgbdSensor to the first body in the plant for every model instance
@@ -166,7 +166,9 @@ class ImageGenerator:
         # Add renderer
         # self._renderer = "ImageGeneratorRenderer"
         # if not self._scene_graph.HasRenderer(self._renderer):
-        #     self._scene_graph.AddRenderer(self._renderer, MakeRenderEngineGl(RenderEngineGlParams()))
+        #     self._scene_graph.AddRenderer(
+        #         self._renderer, MakeRenderEngineGl(RenderEngineGlParams())
+        #     )
 
     def get_camera_data(
         self, camera_name: str, context: Context

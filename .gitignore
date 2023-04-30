@@ -6,3 +6,4 @@ notebooks/mnist_data
 notebooks/cars_train.hdf5
 outputs/
 wandb/
+data/

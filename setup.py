@@ -16,5 +16,6 @@ setup(
         "h5py",
         "pyvirtualdisplay",
         "manipulation",
+        "zarr",
     ],
 )
