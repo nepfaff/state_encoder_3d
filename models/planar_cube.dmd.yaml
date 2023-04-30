@@ -1,0 +1,13 @@
+directives:
+- add_model:
+    name: box
+    file: package://state_encoder_3d/models/box.urdf
+- add_model:
+    name: sphere
+    file: package://state_encoder_3d/models/sphere.urdf
+- add_model:
+    name: floor
+    file: package://state_encoder_3d/models/floor.urdf
+- add_weld:
+    parent: world
+    child: floor::floor

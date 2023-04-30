@@ -4,20 +4,7 @@
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  name="sphere">
 
-  <link name="sphere_x_link">
-    <inertial>
-      <origin xyz="0 0 0.2" rpy="0 0 0" />
-      <mass value="0" />
-      <inertia ixx="0.00" ixy="0" ixz="0" iyy="0.00" iyz="0" izz="0.00" />
-    </inertial>
-  </link>
-
   <link name="sphere">
-    <inertial>
-      <origin xyz="0 0 0.2" rpy="0 0 0" />
-      <mass value="1" />
-      <inertia ixx="0.004" ixy="0" ixz="0" iyy="0.004" iyz="0" izz="0.004" />
-    </inertial>
     <visual>
       <origin xyz="0 0 0.5" rpy="0 0 0" />
       <geometry>
@@ -28,6 +15,7 @@
       </material>
     </visual>
     <collision name="collision">
+        <origin xyz="0 0 0.5" rpy="0 0 0" />
         <geometry>
           <sphere radius="0.5" />
         </geometry>
