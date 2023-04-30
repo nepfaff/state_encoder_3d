@@ -50,7 +50,7 @@ class PlanarCubeEnvironment:
         self._max_pos = max_pos
 
         # Camera intrinsics
-        self._camera_info = CameraInfo(width=128, height=128, fov_y=np.pi / 3.0)
+        self._camera_info = CameraInfo(width=64, height=64, fov_y=np.pi / 3.0)
         self._intrinsics = np.array(
             [
                 [self._camera_info.focal_x(), 0.0, self._camera_info.center_x()],
@@ -114,8 +114,8 @@ class PlanarCubeEnvironment:
             )
 
         X_CW = generate_camera_poses(
-            z_distances=[0.0, 6.0, 8.0, 12.0],
-            radii=[10.0, 7.0, 4.0, 0.0],
+            z_distances=[3.0, 6.0, 8.0, 12.0],
+            radii=[14.0, 12.0, 8.0, 0.0],
             num_poses=[10, 10, 5, 1],
         )
         # The planar cube env already contains one camera
@@ -125,9 +125,6 @@ class PlanarCubeEnvironment:
 
         self._num_cameras = len(X_CW)
         self._world2cam_matrices = X_CW
-        self._intrinsics_matrices = np.repeat(
-            self._intrinsics[np.newaxis, :, :], repeats=self._num_cameras, axis=0
-        )
 
     def _set_env_state(self, finger_pos: List[float], box_pos: List[float]) -> None:
         # Set box position
@@ -270,20 +267,14 @@ class PlanarCubeEnvironment:
         finger_positions = np.asarray(finger_positions)
         box_positions = np.asarray(box_positions)
         images = np.asarray(images)
-        intrinsics = np.repeat(
-            self._intrinsics_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
-        )
-        world2cams = np.repeat(
-            self._world2cam_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
-        )
 
         self._save_dataset(
             dataset_path,
             images,
             finger_positions,
             box_positions,
-            intrinsics,
-            world2cams,
+            self._intrinsics,
+            self._world2cam_matrices,
         )
 
     def generate_grid_dataset(self, dataset_path: str) -> None:
@@ -314,7 +305,7 @@ class PlanarCubeEnvironment:
                     context=self._simulator.get_context(),
                 )
                 views.append(image)
-
+                
             finger_positions.append(finger_pos)
             box_positions.append(box_pos)
             images.append(views)
@@ -322,18 +313,12 @@ class PlanarCubeEnvironment:
         finger_positions = np.asarray(finger_positions)
         box_positions = np.asarray(box_positions)
         images = np.asarray(images)
-        intrinsics = np.repeat(
-            self._intrinsics_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
-        )
-        world2cams = np.repeat(
-            self._world2cam_matrices[np.newaxis, :, :, :], repeats=len(images), axis=0
-        )
 
         self._save_dataset(
             dataset_path,
             images,
             finger_positions,
             box_positions,
-            intrinsics,
-            world2cams,
+            self._intrinsics,
+            self._world2cam_matrices,
         )
