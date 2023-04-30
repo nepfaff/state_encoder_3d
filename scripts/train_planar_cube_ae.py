@@ -48,7 +48,7 @@ def main():
         device = torch.device("cpu")
     print(f"Using device {device}")
 
-    batch_size = 3
+    batch_size = 2
     num_views = 10
     dataset = PlanarCubeDataset(
         data_store_path="data/planar_cube_grid.zarr",
