@@ -15,7 +15,7 @@ from state_encoder_3d.models import (
 from state_encoder_3d.dataset import PlanarCubeDataset
 from state_encoder_3d.utils import plot_output_ground_truth
 
-OUT_PATH = f"outputs/srn_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
+OUT_PATH = f"outputs/planar_cube_nerf_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints"
 
 
 def save(name, step, model, optim):
