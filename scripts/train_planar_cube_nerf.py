@@ -61,9 +61,7 @@ def main():
     nerf = LatentNeRF(latent_ch=latent_dim).to(device)
     nerf.apply(init_weights_normal)
     # Near and far based on z_distances in PlanarCubeEnvironment
-    renderer = VolumeRenderer(near=4, far=13, n_samples=100, white_back=False).to(
-        device
-    )
+    renderer = VolumeRenderer(near=4, far=13, n_samples=100, white_back=True).to(device)
 
     optim = torch.optim.Adam(nerf.parameters(), lr=5e-4, betas=(0.9, 0.999))
 

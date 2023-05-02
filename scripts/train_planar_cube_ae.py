@@ -64,9 +64,7 @@ def main():
     )
     nerf = LatentNeRF(latent_ch=latent_dim).to(device)
     nerf.apply(init_weights_normal)
-    renderer = VolumeRenderer(near=1.0, far=2.5, n_samples=100, white_back=True).to(
-        device
-    )
+    renderer = VolumeRenderer(near=4, far=13, n_samples=100, white_back=True).to(device)
 
     encoder_optim = torch.optim.Adam(encoder.parameters(), lr=lr, betas=(0.9, 0.999))
     nerf_optim = torch.optim.Adam(nerf.parameters(), lr=lr, betas=(0.9, 0.999))

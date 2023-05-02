@@ -20,6 +20,7 @@ from pydrake.all import (
     RgbdSensor,
     MakeRenderEngineGl,
     RenderEngineGlParams,
+    Rgba,
 )
 import zarr
 from tqdm import tqdm
@@ -110,7 +111,10 @@ class PlanarCubeEnvironment:
         self._renderer = "PlanarCubeEnvRenderer"
         if not self._scene_graph.HasRenderer(self._renderer):
             self._scene_graph.AddRenderer(
-                self._renderer, MakeRenderEngineGl(RenderEngineGlParams())
+                self._renderer,
+                MakeRenderEngineGl(
+                    RenderEngineGlParams(default_clear_color=Rgba(1.0, 1.0, 1.0, 0.0))
+                ),
             )
 
         X_CW = generate_camera_poses(
