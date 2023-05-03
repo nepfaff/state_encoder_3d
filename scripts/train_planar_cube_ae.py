@@ -19,6 +19,7 @@ from state_encoder_3d.dataset import PlanarCubeDataset
 from state_encoder_3d.utils import plot_output_ground_truth
 
 config = Namespace(
+    log_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/",
     checkpoint_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
     data_path="data/planar_cube_grid.zarr",
     batch_size=2,
@@ -54,9 +55,6 @@ def save(name, step, model, optim):
 
 
 def main():
-    with open(os.path.join(config.checkpoint_path, "config.json"), 'w') as fp:
-        json.dump(vars(config), fp)
-
     current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     wandb.init(
         project="state_encoder_3d",
@@ -68,6 +66,9 @@ def main():
 
     if not os.path.exists(config.checkpoint_path):
         os.makedirs(config.checkpoint_path)
+
+    with open(os.path.join(config.log_path, "config.json"), 'w') as fp:
+        json.dump(vars(config), fp)
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
