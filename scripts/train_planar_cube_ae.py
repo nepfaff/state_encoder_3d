@@ -19,6 +19,7 @@ from state_encoder_3d.utils import plot_output_ground_truth
 
 config = Namespace(
     checkpoint_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
+    data_path="data/planar_cube_grid.zarr",
     batch_size=2,
     num_views=10,
     latent_dim=256,
@@ -72,7 +73,7 @@ def main():
     print(f"Using device {device}")
 
     dataset = PlanarCubeDataset(
-        data_store_path="data/planar_cube_grid.zarr",
+        data_store_path=config.data_path,
         num_views=config.num_views,
         sample_neg_image=True,
     )
