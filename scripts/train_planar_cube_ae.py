@@ -5,6 +5,7 @@ import time
 import os
 import shutil
 from argparse import Namespace
+import json
 
 import wandb
 
@@ -53,6 +54,9 @@ def save(name, step, model, optim):
 
 
 def main():
+    with open(os.path.join(config.checkpoint_path, "config.json"), 'w') as fp:
+        json.dump(vars(config), fp)
+
     current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     wandb.init(
         project="state_encoder_3d",
