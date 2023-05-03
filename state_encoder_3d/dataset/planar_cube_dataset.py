@@ -15,6 +15,7 @@ class PlanarCubeDataset(IterableDataset):
         num_views: int,
         max_num_instances=None,
         rand_views: bool = True,
+        sample_neg_image: bool = False,
     ):
         """
         Args:
@@ -22,10 +23,13 @@ class PlanarCubeDataset(IterableDataset):
             num_views (int, optional): Number of views to load at once per instance.
             rand_views (bool, optional): If true, sample random views. Otherwise, always
                 return the first 'num_views' for the instance.
+            sample_neg_image (bool, optional): Whether to sample a negative image for
+                state-contrastive learning.
         """
         self._data_store = zarr.open(data_store_path)
         self._num_views = num_views
         self._rand_views = rand_views
+        self._sample_neg_image = sample_neg_image
 
         self._num_instances = len(self._data_store.images)
 
@@ -58,8 +62,7 @@ class PlanarCubeDataset(IterableDataset):
                 else list(range(self._num_views))
             )
             if self._num_views == 1:
-                observation_idx = observation_idx[0]
-                rgb = skimage.img_as_float32(rgbs[observation_idx])
+                rgb = skimage.img_as_float32(rgbs[observation_idx[0]])
             else:
                 rgb = []
                 for i in observation_idx:
@@ -80,6 +83,17 @@ class PlanarCubeDataset(IterableDataset):
                     c2w.append(np.linalg.inv(w2cs[i]))
                 c2w = np.stack(c2w, axis=0)
 
+            if self._sample_neg_image:
+                # Sample a negative image from a different state but same view-point
+                # as the first observation index.
+                while True:
+                    neg_idx = np.random.randint(0, self._num_instances - 1)
+                    if idx != neg_idx:
+                        break
+                neg_rgb = np.asarray(self._data_store.images[neg_idx])[observation_idx[0]]
+                neg_rgb = skimage.img_as_float32(neg_rgb)
+                neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
+
             model_input = {
                 "cam2world": torch.from_numpy(
                     c2w
@@ -90,4 +104,7 @@ class PlanarCubeDataset(IterableDataset):
             }
             # rgb of shape (w*h,3) if num_views=1 else (num_views,w*h,3)
 
-            yield model_input, rgb
+            if self._sample_neg_image:
+                yield model_input, rgb, neg_rgb
+            else:
+                yield model_input, rgb

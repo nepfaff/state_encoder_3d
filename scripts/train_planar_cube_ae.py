@@ -53,15 +53,19 @@ def main():
     dataset = PlanarCubeDataset(
         data_store_path="data/planar_cube_grid.zarr",
         num_views=num_views,
+        sample_neg_image=True,
     )
     dataloader = iter(torch.utils.data.DataLoader(dataset, batch_size=batch_size))
 
     latent_dim = 256
     lr = 1e-4
 
-    encoder = CompNeRFStateEncoder(out_ch=latent_dim, in_ch=3, resnet_out_dim=2048).to(
-        device
-    )
+    encoder = CompNeRFStateEncoder(
+        out_ch=latent_dim,
+        in_ch=3,
+        resnet_out_dim=2048,
+        compute_state_contrastive_loss=True,
+    ).to(device)
     nerf = LatentNeRF(latent_ch=latent_dim).to(device)
     nerf.apply(init_weights_normal)
     renderer = VolumeRenderer(near=4, far=13, n_samples=100, white_back=True).to(device)
@@ -78,20 +82,26 @@ def main():
     steps_til_summary = 1000
     steps_til_plot = 5000
     for step in tqdm(range(num_steps)):
-        model_input, gt_image = next(dataloader)
+        model_input, gt_image, neg_image = next(dataloader)
         xy_pix = model_input["x_pix"].to(device)
         intrinsics = model_input["intrinsics"].to(device)
         c2w = model_input["cam2world"].to(device)
         gt_image = gt_image.to(device)
+        neg_image = neg_image.to(device)
 
         encoder_input = gt_image.view(batch_size, num_views, 64, 64, 3).permute(
             0, 1, 4, 2, 3
         )[:, :num_img_encoded]
+        neg_image_encoder_input = neg_image.view(batch_size, 64, 64, 3).permute(
+            0, 3, 1, 2
+        )
         encoder_input_dict = {
             "images": encoder_input,
+            "neg_image": neg_image_encoder_input,
             "extrinsics": c2w[:, :num_img_encoded],
         }
-        latent = encoder(encoder_input_dict)
+        loss_ct: torch.Tensor
+        latents, loss_ct = encoder(encoder_input_dict)
 
         xy_pix = einops.repeat(
             xy_pix, "B N c -> B num_decoded N c", num_decoded=num_img_decoded
@@ -102,17 +112,25 @@ def main():
         intrinsics = einops.repeat(
             intrinsics, "B x y -> B num_decoded x y", num_decoded=num_img_decoded
         ).reshape(batch_size * num_img_decoded, 3, 3)
-        latent = einops.repeat(
-            latent, "B D -> B num_decoded D", num_decoded=num_img_decoded
+        latents = einops.repeat(
+            latents, "B D -> B num_decoded D", num_decoded=num_img_decoded
         ).reshape(batch_size * num_img_decoded, -1)
-        rgb, depth = renderer(c2w_decoded, intrinsics, xy_pix, nerf, latent)
+        rgb, depth = renderer(c2w_decoded, intrinsics, xy_pix, nerf, latents)
 
         gt_decoded_image = gt_image[:, -num_img_decoded:].reshape(
             batch_size * num_img_decoded, *gt_image.shape[-2:]
         )
 
-        loss = img2mse(rgb, gt_decoded_image)
-        wandb.log({"loss": loss.item()})
+        loss_rec = img2mse(rgb, gt_decoded_image)
+        w_ct = 0.01
+        loss = loss_rec + w_ct * loss_ct
+        wandb.log(
+            {
+                "loss": loss.item(),
+                "loss_ct": loss_ct.item(),
+                "loss_rec": loss_rec.item(),
+            }
+        )
 
         encoder_optim.zero_grad()
         nerf_optim.zero_grad()
