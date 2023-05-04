@@ -78,7 +78,7 @@ def main():
         model_input, gt_image = next(dataloader)
         xy_pix = model_input["x_pix"].to(device)
         intrinsics = model_input["intrinsics"].to(device)
-        c2w = model_input["cam2world"].to(device)
+        c2w = model_input["cam2world"].reshape(batch_size, 4, 4).to(device)
 
         rgb, depth = renderer(c2w, intrinsics, xy_pix, nerf, latent)
 

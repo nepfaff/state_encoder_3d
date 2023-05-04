@@ -97,7 +97,7 @@ class PlanarCubeDataset(IterableDataset):
             model_input = {
                 "cam2world": torch.from_numpy(
                     c2w
-                ),  # Shape (4,4) if num_views=1 else (num_views,4,4)
+                ),  # Shape (num_views,4,4)
                 "intrinsics": torch.from_numpy(intrinsics),  # Shape (4,4)
                 "x_pix": x_pix,  # Shape (i*j, c)
                 "idx": torch.tensor([idx]),
