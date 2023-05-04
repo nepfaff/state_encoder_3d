@@ -133,7 +133,7 @@ class VolumeRenderer(nn.Module):
                 "b d -> b (num_rays num_samples) d",
                 num_rays=num_rays,
                 num_samples=self._n_samples,
-            ).view(
+            ).reshape(
                 -1, radiance_field_input.shape[-1]
             )  # Shape (b*num_rays, d)
 
