@@ -19,18 +19,18 @@ from state_encoder_3d.dataset import PlanarCubeDataset
 from state_encoder_3d.utils import plot_output_ground_truth
 
 config = Namespace(
-    log_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/",
+    log_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
     checkpoint_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
-    data_path="data/planar_cube_grid.zarr",
-    batch_size=2,
+    data_path="data/planar_cube_grid_blue_floor.zarr",
+    batch_size=1,
     num_views=10,
     latent_dim=256,
     resnet_out_dim=2048,
     lr=1e-4,
     img_res=(64, 64),
     near=4.0,
-    far=13.0,
-    num_samples_per_ray=100,
+    far=20.0,
+    num_samples_per_ray=250,
     weight_ct=0.1,
     num_img_encoded=8,
     num_img_decoded=2,
@@ -67,7 +67,7 @@ def main():
     if not os.path.exists(config.checkpoint_path):
         os.makedirs(config.checkpoint_path)
 
-    with open(os.path.join(config.log_path, "config.json"), 'w') as fp:
+    with open(os.path.join(config.log_path, "config.json"), "w") as fp:
         json.dump(vars(config), fp)
 
     if torch.cuda.is_available():

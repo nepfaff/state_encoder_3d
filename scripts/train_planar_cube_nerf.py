@@ -18,8 +18,8 @@ from state_encoder_3d.dataset import PlanarCubeDataset
 from state_encoder_3d.utils import plot_output_ground_truth
 
 config = Namespace(
-    log_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
-    checkpoint_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
+    log_path=f"outputs/planar_cube_nerf_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
+    checkpoint_path=f"outputs/planar_cube_nerf_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
     data_path="data/planar_cube_grid_blue_floor.zarr",
     batch_size=2,
     latent_dim=256,
@@ -27,7 +27,7 @@ config = Namespace(
     lr=5e-4,
     img_res=(64, 64),
     near=4.0,
-    far=13.0,
+    far=20.0,
     num_samples_per_ray=250,
     num_steps=500001,
     steps_til_summary=1000,
