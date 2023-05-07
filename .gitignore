@@ -7,3 +7,4 @@ notebooks/cars_train.hdf5
 outputs/
 wandb/
 data/
+supercloud_run.sh.log*
