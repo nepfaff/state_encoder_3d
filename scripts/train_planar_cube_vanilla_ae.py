@@ -114,8 +114,8 @@ def main():
     img2mse = lambda x, y: torch.mean((x - y) ** 2)
 
     for step in tqdm(range(config.num_steps)):
-        _, gt_image = next(dataloader)
-        gt_image = gt_image.to(device)
+        model_input = next(dataloader)
+        gt_image = model_input["rgb"].to(device)
         gt_image = gt_image.view(
             config.batch_size, config.img_res[0], config.img_res[1], 3
         )

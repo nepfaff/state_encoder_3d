@@ -80,7 +80,6 @@ class PlanarCubeDataset(IterableDataset):
                     rgb.append(skimage.img_as_float32(rgbs[i]))
                 rgb = np.stack(rgb, axis=0)
 
-                depth = None
                 if self._return_depth:
                     depth = []
                     for i in observation_idx:
@@ -103,7 +102,6 @@ class PlanarCubeDataset(IterableDataset):
                     c2w.append(np.linalg.inv(w2cs[i]))
                 c2w = np.stack(c2w, axis=0)
 
-            neg_rgb = None
             if self._sample_neg_image:
                 # Sample a negative image from a different state but same view-point
                 # as the first observation index.
@@ -116,6 +114,11 @@ class PlanarCubeDataset(IterableDataset):
                 ]
                 neg_rgb = skimage.img_as_float32(neg_rgb)
                 neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
+                
+            if not self._return_depth:
+                depth = torch.tensor([])
+            if not self._sample_neg_image:
+                neg_rgb = torch.tensor([])
 
             model_input = {
                 "cam2world": torch.from_numpy(c2w),  # Shape (num_views,4,4)
