@@ -143,6 +143,7 @@ def main():
                 rgb[0], depth[0], gt_decoded_image[0], resolution=(img_sl, img_sl, 3)
             )
             wandb.log({f"step_{step}": fig})
+            plt.close(fig)
 
 
 if __name__ == "__main__":

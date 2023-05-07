@@ -1,5 +1,5 @@
 from .image_encoder import CompNeRFImageEncoder
-from .image_decoder import CNNImageDecoder
+from .image_decoder import CNNImageDecoder, CoordCatCNNImageDecoder
 from .nerf import LatentNeRF
 from .volume_rendering import VolumeRenderer
 from .state_encoder import CompNeRFStateEncoder

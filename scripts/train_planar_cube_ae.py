@@ -8,6 +8,7 @@ from argparse import Namespace
 import json
 
 import wandb
+import matplotlib.pyplot as plt
 
 from state_encoder_3d.models import (
     LatentNeRF,
@@ -184,6 +185,7 @@ def main():
                 resolution=(config.img_res[0], config.img_res[1], 3),
             )
             wandb.log({f"step_{step}": fig})
+            plt.close(fig)
 
 
 if __name__ == "__main__":
