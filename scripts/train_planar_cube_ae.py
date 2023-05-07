@@ -114,8 +114,8 @@ def main():
         xy_pix = model_input["x_pix"].to(device)
         intrinsics = model_input["intrinsics"].to(device)
         c2w = model_input["cam2world"].to(device)
-        gt_image = gt_image.to(device)
-        neg_image = neg_image.to(device)
+        gt_image = model_input["rgb"].to(device)
+        neg_image = model_input["neg_rgb"].to(device)
 
         encoder_input = gt_image.view(
             config.batch_size, config.num_views, config.img_res[0], config.img_res[1], 3

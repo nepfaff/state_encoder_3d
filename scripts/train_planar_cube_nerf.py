@@ -99,14 +99,15 @@ def main():
     latent = einops.repeat(latent, "b ... -> (repeat b) ...", repeat=config.batch_size)
 
     for step in tqdm(range(config.num_steps)):
-        model_input, gt_image = next(dataloader)
+        model_input = next(dataloader)
         xy_pix = model_input["x_pix"].to(device)
         intrinsics = model_input["intrinsics"].to(device)
         c2w = model_input["cam2world"].reshape(config.batch_size, 4, 4).to(device)
+        gt_image = model_input["rgb"].to(device)
 
         rgb, depth = renderer(c2w, intrinsics, xy_pix, nerf, latent)
 
-        loss = img2mse(rgb, gt_image.to(device))
+        loss = img2mse(rgb, gt_image)
         wandb.log({"loss": loss.item()})
 
         optim.zero_grad()

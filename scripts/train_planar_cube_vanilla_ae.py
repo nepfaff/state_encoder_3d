@@ -30,7 +30,7 @@ config = Namespace(
     num_steps=50001,
     steps_til_summary=100,
     steps_til_plot=100,
-    wandb_mode="online",  # "offline",
+    wandb_mode="offline",
 )
 
 

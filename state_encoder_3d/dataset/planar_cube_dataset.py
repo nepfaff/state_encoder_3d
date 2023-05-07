@@ -16,6 +16,7 @@ class PlanarCubeDataset(IterableDataset):
         max_num_instances=None,
         rand_views: bool = True,
         sample_neg_image: bool = False,
+        return_depth: bool = False,
     ):
         """
         Args:
@@ -25,11 +26,14 @@ class PlanarCubeDataset(IterableDataset):
                 return the first 'num_views' for the instance.
             sample_neg_image (bool, optional): Whether to sample a negative image for
                 state-contrastive learning.
+            return_depth (bool, optional): Whether to return the depth images that
+                correspond to the ruturned RGB images.
         """
         self._data_store = zarr.open(data_store_path)
         self._num_views = num_views
         self._rand_views = rand_views
         self._sample_neg_image = sample_neg_image
+        self._return_depth = return_depth
 
         self._num_instances = len(self._data_store.images)
 
@@ -56,6 +60,8 @@ class PlanarCubeDataset(IterableDataset):
                 )
 
             rgbs = np.asarray(self._data_store.images[idx])
+            if self._return_depth:
+                depths = np.asarray(self._data_store.depths[idx])
             w2cs = np.asarray(self._data_store.world2cams, dtype=np.float32)
             intrinsics = np.asarray(self._data_store.intrinsics, dtype=np.float32)
 
@@ -66,17 +72,28 @@ class PlanarCubeDataset(IterableDataset):
             )
             if self._num_views == 1:
                 rgb = skimage.img_as_float32(rgbs[observation_idx[0]])
+                if self._return_depth:
+                    depth = depths[observation_idx[0]]
             else:
                 rgb = []
                 for i in observation_idx:
                     rgb.append(skimage.img_as_float32(rgbs[i]))
                 rgb = np.stack(rgb, axis=0)
 
+                depth = None
+                if self._return_depth:
+                    depth = []
+                    for i in observation_idx:
+                        depth.append(depths[i])
+                    depth = np.stack(depth, axis=0)
+
             x_pix = get_opencv_pixel_coordinates(
                 *(rgb.shape[:2] if self._num_views == 1 else rgb.shape[1:3])
             )
             x_pix = einops.rearrange(x_pix, "i j c -> (i j) c")
             rgb = einops.rearrange(rgb, "... i j c -> ... (i j) c")
+            if self._return_depth:
+                depth = einops.rearrange(depth, "... i j -> ... (i j)")
 
             if self._num_views == 1:
                 c2w = np.linalg.inv(w2cs[observation_idx])
@@ -86,6 +103,7 @@ class PlanarCubeDataset(IterableDataset):
                     c2w.append(np.linalg.inv(w2cs[i]))
                 c2w = np.stack(c2w, axis=0)
 
+            neg_rgb = None
             if self._sample_neg_image:
                 # Sample a negative image from a different state but same view-point
                 # as the first observation index.
@@ -104,10 +122,9 @@ class PlanarCubeDataset(IterableDataset):
                 "intrinsics": torch.from_numpy(intrinsics),  # Shape (4,4)
                 "x_pix": x_pix,  # Shape (i*j, c)
                 "idx": torch.tensor([idx]),
+                "rgb": rgb,  # Shape (w*h,3) if num_views=1 else (num_views,w*h,3)
+                "neg_rgb": neg_rgb,  # Shape (w*h,3)
+                "depth": depth,  # Shape (w*h) if num_views=1 else (num_views,w*h)
             }
-            # rgb of shape (w*h,3) if num_views=1 else (num_views,w*h,3)
 
-            if self._sample_neg_image:
-                yield model_input, rgb, neg_rgb
-            else:
-                yield model_input, rgb
+            yield model_input
