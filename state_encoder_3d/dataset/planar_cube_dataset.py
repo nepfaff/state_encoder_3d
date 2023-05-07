@@ -38,6 +38,9 @@ class PlanarCubeDataset(IterableDataset):
         if max_num_instances is not None and max_num_instances < self._num_instances:
             self._num_instances = max_num_instances
 
+        if self._num_instances == 1:
+            self._fixed_idx = np.random.randint(0, len(self._data_store.images) - 1)
+
     def __len__(self):
         return len(self._num_instances)
 
@@ -47,7 +50,7 @@ class PlanarCubeDataset(IterableDataset):
                 idx = override_idx
             else:
                 idx = (
-                    0
+                    self._fixed_idx
                     if self._num_instances == 1
                     else np.random.randint(0, self._num_instances - 1)
                 )
@@ -90,14 +93,14 @@ class PlanarCubeDataset(IterableDataset):
                     neg_idx = np.random.randint(0, self._num_instances - 1)
                     if idx != neg_idx:
                         break
-                neg_rgb = np.asarray(self._data_store.images[neg_idx])[observation_idx[0]]
+                neg_rgb = np.asarray(self._data_store.images[neg_idx])[
+                    observation_idx[0]
+                ]
                 neg_rgb = skimage.img_as_float32(neg_rgb)
                 neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
 
             model_input = {
-                "cam2world": torch.from_numpy(
-                    c2w
-                ),  # Shape (num_views,4,4)
+                "cam2world": torch.from_numpy(c2w),  # Shape (num_views,4,4)
                 "intrinsics": torch.from_numpy(intrinsics),  # Shape (4,4)
                 "x_pix": x_pix,  # Shape (i*j, c)
                 "idx": torch.tensor([idx]),
