@@ -80,7 +80,7 @@ class PlanarCubeEnvironment:
                     ClippingRange(near=0.1, far=150.0),
                     RigidTransform(),
                 ),
-                DepthRange(0.1, 10.0),
+                DepthRange(0.1, 20.0),
             )
             rgbd = self._builder.AddSystem(
                 RgbdSensor(
@@ -185,7 +185,7 @@ class PlanarCubeEnvironment:
 
         # Set up image generator
         self._image_generator = ImageGenerator(
-            max_depth_range=10.0, diagram=diagram, scene_graph=self._scene_graph
+            max_depth_range=20.0, diagram=diagram, scene_graph=self._scene_graph
         )
 
     def _is_env_state_feasible(self) -> bool:
@@ -215,6 +215,7 @@ class PlanarCubeEnvironment:
         self,
         path: str,
         images: np.ndarray,
+        depths: np.ndarray,
         finger_positions: np.ndarray,
         box_positions: np.ndarray,
         intrinsics: np.ndarray,
@@ -230,6 +231,8 @@ class PlanarCubeEnvironment:
         root = zarr.group(store=store)
         image_store = root.zeros_like("images", images)
         image_store[:] = images
+        depth_store = root.zeros_like("depths", depths)
+        depth_store[:] = depths
         finger_pos_store = root.zeros_like("finger_positions", finger_positions)
         finger_pos_store[:] = finger_positions
         box_pos_store = root.zeros_like("box_positions", box_positions)
@@ -243,6 +246,7 @@ class PlanarCubeEnvironment:
         finger_positions = []  # Shape (N, 2)
         box_positions = []  # Shape (N, 2)
         images = []  # Shape (N, num_views, W, H, C)
+        depths = []  # Shape (N, num_views, W, H)
         for _ in tqdm(range(num_samples)):
             # Set random scene state
             finger_pos = (self._max_pos - self._min_pos) * np.random.random_sample(
@@ -257,24 +261,29 @@ class PlanarCubeEnvironment:
                 continue
 
             views = []
+            depth_views = []
             for cam_idx in range(self._num_cameras):
-                image, _, _, _ = self._image_generator.get_camera_data(
+                image, depth, _, _ = self._image_generator.get_camera_data(
                     camera_name=f"camera{cam_idx}",
                     context=self._simulator.get_context(),
                 )
                 views.append(image)
+                depth_views.append(depth)
 
             finger_positions.append(finger_pos)
             box_positions.append(box_pos)
             images.append(views)
+            depths.append(depth_views)
 
         finger_positions = np.asarray(finger_positions)
         box_positions = np.asarray(box_positions)
         images = np.asarray(images)
+        depths = np.asarray(depths)
 
         self._save_dataset(
             dataset_path,
             images,
+            depths,
             finger_positions,
             box_positions,
             self._intrinsics,
@@ -294,6 +303,7 @@ class PlanarCubeEnvironment:
         finger_positions = []  # Shape (N, 2)
         box_positions = []  # Shape (N, 2)
         images = []  # Shape (N, num_views, W, H, C)
+        depths = []  # Shape (N, num_views, W, H)
         for sample in tqdm(samples_4d):
             finger_pos = sample[:2]
             box_pos = sample[2:]
@@ -303,24 +313,29 @@ class PlanarCubeEnvironment:
                 continue
 
             views = []
+            depth_views = []
             for cam_idx in range(self._num_cameras):
-                image, _, _, _ = self._image_generator.get_camera_data(
+                image, depth, _, _ = self._image_generator.get_camera_data(
                     camera_name=f"camera{cam_idx}",
                     context=self._simulator.get_context(),
                 )
                 views.append(image)
+                depth_views.append(depth)
 
             finger_positions.append(finger_pos)
             box_positions.append(box_pos)
             images.append(views)
+            depths.append(depth_views)
 
         finger_positions = np.asarray(finger_positions)
         box_positions = np.asarray(box_positions)
         images = np.asarray(images)
+        depths = np.asarray(depths)
 
         self._save_dataset(
             dataset_path,
             images,
+            depths,
             finger_positions,
             box_positions,
             self._intrinsics,
