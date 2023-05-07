@@ -114,7 +114,7 @@ class PlanarCubeDataset(IterableDataset):
                 ]
                 neg_rgb = skimage.img_as_float32(neg_rgb)
                 neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
-                
+
             if not self._return_depth:
                 depth = torch.tensor([])
             if not self._sample_neg_image:

@@ -17,13 +17,13 @@ from state_encoder_3d.models import (
     init_weights_normal,
 )
 from state_encoder_3d.dataset import PlanarCubeDataset
-from state_encoder_3d.utils import plot_output_ground_truth
+from state_encoder_3d.utils import plot_output_ground_truth_with_depth
 
 config = Namespace(
     log_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
     checkpoint_path=f"outputs/planar_cube_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
-    data_path="data/planar_cube_grid_blue_floor.zarr",
-    batch_size=1,
+    data_path="data/planar_cube_grid_blue_floor_depth.zarr",
+    batch_size=2,
     num_views=10,
     latent_dim=256,
     resnet_out_dim=2048,
@@ -31,13 +31,14 @@ config = Namespace(
     img_res=(64, 64),
     near=4.0,
     far=20.0,
-    num_samples_per_ray=250,
+    num_samples_per_ray=150,
     weight_ct=0.1,
+    weight_depth=1e-4,
     num_img_encoded=8,
     num_img_decoded=2,
     num_steps=500001,
-    steps_til_summary=1000,
-    steps_til_plot=5000,
+    steps_til_summary=500,
+    steps_til_plot=1000,
     wandb_mode="offline",
 )
 
@@ -82,6 +83,7 @@ def main():
         data_store_path=config.data_path,
         num_views=config.num_views,
         sample_neg_image=True,
+        return_depth=True,
     )
     dataloader = iter(
         torch.utils.data.DataLoader(dataset, batch_size=config.batch_size)
@@ -110,12 +112,13 @@ def main():
     img2mse = lambda x, y: torch.mean((x - y) ** 2)
 
     for step in tqdm(range(config.num_steps)):
-        model_input, gt_image, neg_image = next(dataloader)
+        model_input = next(dataloader)
         xy_pix = model_input["x_pix"].to(device)
         intrinsics = model_input["intrinsics"].to(device)
         c2w = model_input["cam2world"].to(device)
         gt_image = model_input["rgb"].to(device)
         neg_image = model_input["neg_rgb"].to(device)
+        gt_depth = model_input["depth"].to(device)
 
         encoder_input = gt_image.view(
             config.batch_size, config.num_views, config.img_res[0], config.img_res[1], 3
@@ -144,19 +147,25 @@ def main():
             latents, "B D -> B num_decoded D", num_decoded=config.num_img_decoded
         ).reshape(config.batch_size * config.num_img_decoded, -1)
         rgb, depth = renderer(c2w_decoded, intrinsics, xy_pix, nerf, latents)
+        depth = depth.squeeze(-1)
 
         gt_decoded_image = gt_image[:, -config.num_img_decoded :].reshape(
             config.batch_size * config.num_img_decoded, *gt_image.shape[-2:]
         )
+        gt_decoded_depth = gt_depth[:, -config.num_img_decoded :].reshape(
+            config.batch_size * config.num_img_decoded, gt_depth.shape[-1]
+        )
 
         loss_rec = img2mse(rgb, gt_decoded_image)
+        loss_depth = img2mse(depth, gt_decoded_depth)
         loss: torch.Tensor
-        loss = loss_rec + config.weight_ct * loss_ct
+        loss = loss_rec + config.weight_ct * loss_ct + config.weight_depth * loss_depth
         wandb.log(
             {
                 "loss": loss.item(),
                 "loss_ct": loss_ct.item(),
                 "loss_rec": loss_rec.item(),
+                "loss_depth": loss_depth.item(),
             }
         )
 
@@ -178,10 +187,11 @@ def main():
             save(name="nerf", step=step, model=nerf, optim=nerf_optim)
 
         if not step % config.steps_til_plot:
-            fig = plot_output_ground_truth(
+            fig = plot_output_ground_truth_with_depth(
                 rgb[0],
                 depth[0],
                 gt_decoded_image[0],
+                gt_decoded_depth[0],
                 resolution=(config.img_res[0], config.img_res[1], 3),
             )
             wandb.log({f"step_{step}": fig})

@@ -1,2 +1,2 @@
 from .geometry import get_world_rays, get_opencv_pixel_coordinates
-from .util import plot_output_ground_truth
+from .util import plot_output_ground_truth, plot_output_ground_truth_with_depth
