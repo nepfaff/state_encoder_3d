@@ -86,7 +86,6 @@ def main():
     dataset = PlanarCubeDataset(
         data_store_path=config.data_path,
         num_views=1,
-        max_num_instances=1,  # TODO: testing only
     )
     dataloader = iter(
         torch.utils.data.DataLoader(dataset, batch_size=config.batch_size)
