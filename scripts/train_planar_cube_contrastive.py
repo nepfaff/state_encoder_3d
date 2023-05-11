@@ -18,13 +18,14 @@ config = Namespace(
     log_path=f"outputs/planar_cube_contrastive_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
     checkpoint_path=f"outputs/planar_cube_contrastive_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
     data_path="data/planar_cube_grid_blue_floor_depth.zarr",
-    batch_size=10,
+    batch_size=100,
     latent_dim=256,
     resnet_out_dim=2048,
     lr=1e-3,
+    triplet_margin=0.5,
     img_res=(64, 64),
     num_steps=50001,
-    steps_til_summary=200,
+    steps_til_summary=100,
     wandb_mode="offline",
 )
 
@@ -106,7 +107,9 @@ def main():
             config.batch_size, config.latent_dim
         )  # Shape (B, D)
 
-        loss_ct = state_contrastive_loss(anchor_latent, pos_latent, neg_latent)
+        loss_ct = state_contrastive_loss(
+            anchor_latent, pos_latent, neg_latent, margin=config.triplet_margin
+        )
         wandb.log(
             {
                 "loss": loss_ct.item(),

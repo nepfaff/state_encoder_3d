@@ -182,8 +182,8 @@ def main():
 
         if not step % config.steps_til_plot:
             fig = plot_output_ground_truth(
-                decoded_image[0,0],
-                gt_image[0,0],
+                decoded_image[0, 0],
+                gt_image[0, 0],
                 resolution=(config.img_res[0], config.img_res[1], 3),
             )
             wandb.log({f"step_{step}": fig})
