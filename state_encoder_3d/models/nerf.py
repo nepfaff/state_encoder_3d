@@ -67,6 +67,7 @@ class LatentNeRF(nn.Module):
         x = torch.cat([latent, encoded_coord], dim=-1)
         for i, layer in enumerate(self._layers):
             x = layer(x)
+            # TODO: The final output shouldn't be activated by ReLU
             x = F.relu(x, inplace=True)
             if i == 4:  # Skip connection
                 x = torch.cat([torch.cat([latent, encoded_coord], dim=-1), x], dim=-1)

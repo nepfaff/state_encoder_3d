@@ -16,6 +16,7 @@ class PlanarCubeDataset(IterableDataset):
         max_num_instances=None,
         rand_views: bool = True,
         sample_neg_image: bool = False,
+        num_neg_views: int = -1,
         return_depth: bool = False,
     ):
         """
@@ -33,11 +34,14 @@ class PlanarCubeDataset(IterableDataset):
         self._num_views = num_views
         self._rand_views = rand_views
         self._sample_neg_image = sample_neg_image
+        self._num_neg_views = num_neg_views
         self._return_depth = return_depth
 
         self._num_instances = len(self._data_store.images)
 
         assert num_views > 0
+        if sample_neg_image:
+            assert num_neg_views > 0
 
         if max_num_instances is not None and max_num_instances < self._num_instances:
             self._num_instances = max_num_instances
@@ -64,6 +68,13 @@ class PlanarCubeDataset(IterableDataset):
                 depths = np.asarray(self._data_store.depths[idx])
             w2cs = np.asarray(self._data_store.world2cams, dtype=np.float32)
             intrinsics = np.asarray(self._data_store.intrinsics, dtype=np.float32)
+            finger_positions = np.asarray(
+                self._data_store.finger_positions[idx], dtype=np.float32
+            )
+            box_positions = np.asanyarray(
+                self._data_store.box_positions[idx], dtype=np.float32
+            )
+            env_state = np.concatenate((finger_positions, box_positions), axis=-1)
 
             observation_idx = (
                 np.random.randint(0, len(rgbs), size=self._num_views)
@@ -105,15 +116,25 @@ class PlanarCubeDataset(IterableDataset):
             if self._sample_neg_image:
                 # Sample a negative image from a different state but same view-point
                 # as the first observation index.
-                while True:
+                neg_indices = []
+                while len(neg_indices) < self._num_neg_views:
                     neg_idx = np.random.randint(0, self._num_instances - 1)
-                    if idx != neg_idx:
-                        break
-                neg_rgb = np.asarray(self._data_store.images[neg_idx])[
-                    observation_idx[0]
-                ]
-                neg_rgb = skimage.img_as_float32(neg_rgb)
-                neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
+                    if neg_idx == idx or neg_idx in neg_indices:
+                        continue
+                    neg_indices.append(neg_idx)
+                neg_indices = neg_indices
+                neg_rgbs = []
+                for neg_idx in neg_indices:
+                    neg_rgb = np.asarray(self._data_store.images[neg_idx])[
+                        observation_idx[0]
+                    ]
+                    neg_rgb = skimage.img_as_float32(neg_rgb)
+                    neg_rgb = einops.rearrange(neg_rgb, "... i j c -> ... (i j) c")
+                    neg_rgbs.append(neg_rgb)
+                neg_rgb = np.asarray(neg_rgbs)
+
+                if self._num_neg_views == 1:
+                    neg_rgb.squeeze(0)
 
             if not self._return_depth:
                 depth = torch.tensor([])
@@ -126,8 +147,9 @@ class PlanarCubeDataset(IterableDataset):
                 "x_pix": x_pix,  # Shape (i*j, c)
                 "idx": torch.tensor([idx]),
                 "rgb": rgb,  # Shape (w*h,3) if num_views=1 else (num_views,w*h,3)
-                "neg_rgb": neg_rgb,  # Shape (w*h,3)
+                "neg_rgb": neg_rgb,  # Shape (w*h,3) if num_neg_views=1 else (num_neg_views,w*h,3)
                 "depth": depth,  # Shape (w*h) if num_views=1 else (num_views,w*h)
+                "env_state": torch.from_numpy(env_state),  # Shape (4,)
             }
 
             yield model_input
