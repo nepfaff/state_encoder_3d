@@ -79,7 +79,7 @@ def main():
         out_ch=config.latent_dim,
         in_ch=3,
         resnet_out_dim=config.resnet_out_dim,
-        normalize=False,
+        normalize=True,
     ).to(device)
 
     encoder_optim = torch.optim.Adam(
@@ -102,9 +102,7 @@ def main():
         latents = latents.reshape(config.batch_size, 2, config.latent_dim)
         anchor_latent = latents[:, 0].squeeze(1)  # Shape (B, D)
         pos_latent = latents[:, 1].squeeze(1)  # Shape (B, D)
-        neg_latent = encoder(
-            neg_encoder_input
-        ).reshape(
+        neg_latent = encoder(neg_encoder_input).reshape(
             config.batch_size, config.latent_dim
         )  # Shape (B, D)
 

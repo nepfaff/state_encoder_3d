@@ -14,6 +14,7 @@ from state_encoder_3d.models import (
     CNNImageDecoder,
     CoordCatCNNImageDecoder,
     CompNeRFImageEncoder,
+    state_contrastive_loss,
 )
 from state_encoder_3d.dataset import PlanarCubeDataset
 
@@ -23,6 +24,7 @@ config = Namespace(
     data_path="data/planar_cube_grid_blue_floor.zarr",
     batch_size=250,
     latent_dim=256,
+    w_ct=0.1,
     decoder_hidden_ch=256,
     resnet_out_dim=2048,
     lr=5e-4,
@@ -83,16 +85,21 @@ def main():
         device = torch.device("cpu")
     print(f"Using device {device}")
 
+    num_views = 1 if config.w_ct == 0 else 2
     dataset = PlanarCubeDataset(
         data_store_path=config.data_path,
-        num_views=1,
+        num_views=num_views,
+        sample_neg_image=config.w_ct > 0,
     )
     dataloader = iter(
         torch.utils.data.DataLoader(dataset, batch_size=config.batch_size)
     )
 
     encoder = CompNeRFImageEncoder(
-        out_ch=config.latent_dim, in_ch=3, resnet_out_dim=config.resnet_out_dim
+        out_ch=config.latent_dim,
+        in_ch=3,
+        resnet_out_dim=config.resnet_out_dim,
+        normalize=True,
     ).to(device)
     # NOTE: num_up is determined by the image resolution as we need to upsample to that resolution
     decoder = CNNImageDecoder(
@@ -116,17 +123,44 @@ def main():
         model_input = next(dataloader)
         gt_image = model_input["rgb"].to(device)
         gt_image = gt_image.view(
-            config.batch_size, config.img_res[0], config.img_res[1], 3
+            config.batch_size, num_views, config.img_res[0], config.img_res[1], 3
         )
+        neg_image = model_input["neg_rgb"].to(device)
 
-        encoder_input = gt_image.permute(0, 3, 1, 2)
-        latent = encoder(encoder_input)
+        encoder_input = gt_image.permute(0, 1, 4, 2, 3)
+        latent = encoder(encoder_input.view(-1, *encoder_input.shape[-3:]))
 
         decoded_image = decoder(latent)
-        decoded_image = decoded_image.permute(0, 2, 3, 1)
+        decoded_image = decoded_image.view(
+            config.batch_size, num_views, 3, config.img_res[0], config.img_res[1]
+        ).permute(0, 2, 3, 1)
 
-        loss = img2mse(decoded_image, gt_image)
-        wandb.log({"loss": loss.item()})
+        if config.w_ct > 0:
+            anchor_latent = latents[:, 0].squeeze(1)  # Shape (B, D)
+            pos_latent = latents[:, 1].squeeze(1)  # Shape (B, D)
+
+            neg_encoder_input = neg_image.view(
+                config.batch_size, config.img_res[0], config.img_res[1], 3
+            ).permute(0, 3, 1, 2)
+            neg_latent = encoder(neg_encoder_input).reshape(
+                config.batch_size, config.latent_dim
+            )  # Shape (B, D)
+
+            loss_ct = state_contrastive_loss(anchor_latent, pos_latent, neg_latent)
+        else:
+            loss_ct = 0.0
+
+        print("decoded shape", decoded_image.shape, "gt shape", gt_image.shape)
+        loss_rec = img2mse(decoded_image, gt_image)
+
+        loss = loss_rec + config.w_ct * loss_ct.item()
+        wandb.log(
+            {
+                "loss": loss.item(),
+                "loss_rec": loss_rec.item(),
+                "loss_ct": loss_ct.item(),
+            }
+        )
 
         encoder_optim.zero_grad()
         decoder_optim.zero_grad()
