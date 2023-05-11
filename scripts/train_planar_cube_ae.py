@@ -101,7 +101,7 @@ def main():
         near=config.near,
         far=config.far,
         n_samples=config.num_samples_per_ray,
-        white_back=(config.weight_depth==0.0),
+        white_back=(config.weight_depth == 0.0),
     ).to(device)
 
     encoder_optim = torch.optim.Adam(
