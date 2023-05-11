@@ -22,7 +22,7 @@ config = Namespace(
     log_path=f"outputs/planar_cube_vanilla_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
     checkpoint_path=f"outputs/planar_cube_vanilla_ae_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
     data_path="data/planar_cube_grid_blue_floor.zarr",
-    batch_size=250,
+    batch_size=100,
     latent_dim=256,
     w_ct=0.1,
     decoder_hidden_ch=256,
@@ -90,6 +90,7 @@ def main():
         data_store_path=config.data_path,
         num_views=num_views,
         sample_neg_image=config.w_ct > 0,
+        num_neg_views=1 if config.w_ct > 0 else 0,
     )
     dataloader = iter(
         torch.utils.data.DataLoader(dataset, batch_size=config.batch_size)
@@ -133,11 +134,12 @@ def main():
         decoded_image = decoder(latent)
         decoded_image = decoded_image.view(
             config.batch_size, num_views, 3, config.img_res[0], config.img_res[1]
-        ).permute(0, 2, 3, 1)
+        ).permute(0, 1, 3, 4, 2)
 
         if config.w_ct > 0:
-            anchor_latent = latents[:, 0].squeeze(1)  # Shape (B, D)
-            pos_latent = latents[:, 1].squeeze(1)  # Shape (B, D)
+            latent = latent.reshape(config.batch_size, num_views, config.latent_dim)
+            anchor_latent = latent[:, 0].squeeze(1)  # Shape (B, D)
+            pos_latent = latent[:, 1].squeeze(1)  # Shape (B, D)
 
             neg_encoder_input = neg_image.view(
                 config.batch_size, config.img_res[0], config.img_res[1], 3
@@ -148,9 +150,8 @@ def main():
 
             loss_ct = state_contrastive_loss(anchor_latent, pos_latent, neg_latent)
         else:
-            loss_ct = 0.0
+            loss_ct = torch.tensor([0.0])
 
-        print("decoded shape", decoded_image.shape, "gt shape", gt_image.shape)
         loss_rec = img2mse(decoded_image, gt_image)
 
         loss = loss_rec + config.w_ct * loss_ct.item()
@@ -181,8 +182,8 @@ def main():
 
         if not step % config.steps_til_plot:
             fig = plot_output_ground_truth(
-                decoded_image[0],
-                gt_image[0],
+                decoded_image[0,0],
+                gt_image[0,0],
                 resolution=(config.img_res[0], config.img_res[1], 3),
             )
             wandb.log({f"step_{step}": fig})
