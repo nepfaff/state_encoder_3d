@@ -1,4 +1,3 @@
-import torch
 from tqdm import tqdm
 import time
 import os
@@ -7,6 +6,7 @@ from argparse import Namespace
 import json
 
 import wandb
+import torch
 
 from state_encoder_3d.models import (
     CompNeRFImageEncoder,
@@ -22,7 +22,8 @@ config = Namespace(
     latent_dim=256,
     resnet_out_dim=2048,
     lr=1e-3,
-    triplet_margin=0.5,
+    triplet_margin=2.0,
+    normalize=False,
     img_res=(64, 64),
     num_steps=50001,
     steps_til_summary=100,
@@ -80,10 +81,10 @@ def main():
         out_ch=config.latent_dim,
         in_ch=3,
         resnet_out_dim=config.resnet_out_dim,
-        normalize=True,
+        normalize=config.normalize,
     ).to(device)
 
-    encoder_optim = torch.optim.Adam(
+    encoder_optim = torch.optim.AdamW(
         encoder.parameters(), lr=config.lr, betas=(0.9, 0.999)
     )
 
