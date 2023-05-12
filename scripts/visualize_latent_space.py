@@ -34,8 +34,8 @@ def main():
     run_name = args.name
 
     # Number of states is limited by distinct colors in color palette
-    num_states = 10
-    color_palette = "tab10"
+    num_states = 15
+    color_palette = "tab20"
 
     current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     wandb.init(
@@ -75,7 +75,7 @@ def main():
         x="x",
         y="y",
         hue="state",
-        palette=sns.color_palette(color_palette, 10),
+        palette=sns.color_palette(color_palette, num_states),
         data=finger_df,
         legend="full",
         ax=axes[0, 0],
@@ -87,7 +87,7 @@ def main():
         x="x",
         y="y",
         hue="state",
-        palette=sns.color_palette(color_palette, 10),
+        palette=sns.color_palette(color_palette, num_states),
         data=box_df,
         legend="full",
         ax=axes[0, 1],
@@ -114,14 +114,13 @@ def main():
         palette=sns.color_palette(color_palette, num_states),
         data=df,
         legend="full",
-        alpha=0.6,
     )
     plt.title("Fist two PCA components")
     wandb.log({"first_two_pca_components": wandb.Image(fig)})
     plt.close()
 
     # TSNE on all dimensions
-    tsne = TSNE(n_components=2)
+    tsne = TSNE(n_components=2, n_iter=5000)
     tsne_results = tsne.fit_transform(df[feat_cols].values)
     df["tsne-2d-one"] = tsne_results[:, 0]
     df["tsne-2d-two"] = tsne_results[:, 1]
@@ -131,10 +130,9 @@ def main():
         x="tsne-2d-one",
         y="tsne-2d-two",
         hue="state",
-        palette=sns.color_palette(color_palette, 10),
+        palette=sns.color_palette(color_palette, num_states),
         data=df,
         legend="full",
-        alpha=0.6,
     )
     plt.title("TSNE on all dimensions (2 components)")
     wandb.log({"tsne_all_dim_first_2_components": wandb.Image(fig)})
@@ -146,7 +144,7 @@ def main():
     print(
         f"Explained variance of remaining 50 components: {np.sum(pca.explained_variance_ratio_)}"
     )
-    tsne = TSNE(n_components=2)
+    tsne = TSNE(n_components=2, n_iter=5000)
     tsne_pca_results = tsne.fit_transform(pca_result_50)
     df["tsne-pca50-one"] = tsne_pca_results[:, 0]
     df["tsne-pca50-two"] = tsne_pca_results[:, 1]
@@ -156,10 +154,9 @@ def main():
         x="tsne-pca50-one",
         y="tsne-pca50-two",
         hue="state",
-        palette=sns.color_palette(color_palette, 10),
+        palette=sns.color_palette(color_palette, num_states),
         data=df,
         legend="full",
-        alpha=0.6,
     )
     plt.title("TSNE on 50 dimensions (2 components)")
     wandb.log({"tsne_50_dim_first_2_components": wandb.Image(fig)})
