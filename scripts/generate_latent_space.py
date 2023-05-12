@@ -57,8 +57,13 @@ def main():
         type=int,
     )
     parser.add_argument(
-        "--num_views",
+        "--num_state_encoder_views",
         default=10,
+        type=int,
+    )
+    parser.add_argument(
+        "--num_views",
+        default=24,
         type=int,
     )
     args = parser.parse_args()
@@ -69,6 +74,7 @@ def main():
     latent_dim = args.latent_dim
     resnet_out_dim = args.resnet_out_dim
     num_views = args.num_views
+    num_state_encoder_views = args.num_state_encoder_views
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
@@ -111,13 +117,39 @@ def main():
         state = data["env_state"].to(device)
 
         if encoder_name == "state":
-            encoder_input = rgb.view(1, num_views, 64, 64, 3).permute(0, 1, 4, 2, 3)
-            encoder_input_dict = {
-                "images": encoder_input,
-                "extrinsics": c2w,
-            }
-            latent = encoder(encoder_input_dict)  # Shape (1, latent_dim)
-            latent = latent.squeeze(0)  # Shape (latent_dim,)
+            # Sample such that use 'num_state_encoder_views' unique views per state
+            # encoding and encode each state 'num_views' times
+            view_indices = []
+            for _ in range(num_views):
+                view_indices.append(
+                    np.random.choice(
+                        np.arange(num_views),
+                        size=num_state_encoder_views,
+                        replace=False,
+                    )
+                )
+            view_indices = np.concatenate(view_indices, axis=0).flatten()
+
+            encoded_rgbs = rgb[view_indices].reshape(
+                num_views, num_state_encoder_views, 64, 64, 3
+            )
+            encoded_c2ws = c2w[view_indices].reshape(
+                num_views, num_state_encoder_views, 4, 4
+            )
+
+            view_latent = []
+            for rgb, c2w in zip(encoded_rgbs, encoded_c2ws):
+                encoder_input = rgb.view(1, num_state_encoder_views, 64, 64, 3).permute(
+                    0, 1, 4, 2, 3
+                )
+                encoder_input_dict = {
+                    "images": encoder_input,
+                    "extrinsics": c2w,
+                }
+                latent = encoder(encoder_input_dict)  # Shape (1, latent_dim)
+                view_latent.append(latent)
+            latent = torch.concat(view_latent, dim=0)  # Shape (num_views, latent_dim)
+
         elif encoder_name == "image":
             encoder_input = rgb.view(num_views, 64, 64, 3).permute(0, 3, 1, 2)
             latent = encoder(encoder_input)  # Shape (num_views, latent_dim)
