@@ -1,6 +1,4 @@
 import torch
-from torch import nn
-from tqdm import tqdm
 import time
 import os
 import shutil
@@ -8,30 +6,24 @@ from argparse import Namespace
 import json
 
 import wandb
+from tqdm import tqdm
 
-from state_encoder_3d.models import (
-    LatentNeRF,
-    ReluMLP,
-    CompNeRFStateEncoder,
-)
-from state_encoder_3d.dataset import PlanarCubeDataset
+from state_encoder_3d.models import ReluMLP
+from state_encoder_3d.dataset import PlanarCubeLatentDataset
 
 config = Namespace(
-    log_path=f"outputs/planar_cube_ae_state_decoder_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
-    checkpoint_path=f"outputs/planar_cube_ae_state_decoder_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
-    data_path="data/planar_cube_grid_blue_floor_depth.zarr",
-    encoder_ckpt_path="outputs/nerf_ae_ct_and_depth/encoder_177000",
-    nerf_ckpt_path="outputs/nerf_ae_ct_and_depth/nerf_177000",
-    batch_size=100,
+    log_path=f"outputs/planar_cube_state_decoder_{time.strftime('%Y-%b-%d-%H-%M-%S')}",
+    checkpoint_path=f"outputs/planar_cube_state_decoder_{time.strftime('%Y-%b-%d-%H-%M-%S')}/checkpoints",
+    data_path="data/checkpoints/ct_info_nce/encoder_latents.zarr",
+    batch_size=1000,
     latent_dim=256,
-    resnet_out_dim=2048,
     env_state_decoder_latent_dim=512,
     env_state_decoder_num_hidden_layers=5,
     lr=1e-3,
     img_res=(64, 64),
-    num_steps=5000,
-    steps_til_summary=100,
-    wandb_mode="offline",
+    num_steps=200000,
+    steps_til_summary=10000,
+    wandb_mode="online",
 )
 
 
@@ -48,21 +40,11 @@ def save(name, step, model, optim):
     )
 
 
-def load(model: nn.Module, ckpt_path: str, device: torch.device) -> None:
-    ckpt = torch.load(ckpt_path, map_location=device)
-    model.load_state_dict(ckpt["trainer_state_dict"])
-
-
-def set_requires_grad(model: nn.Module, requires_grad: bool) -> None:
-    for param in model.parameters():
-        param.requires_grad = requires_grad
-
-
 def main():
     current_time = time.strftime("%Y-%b-%d-%H-%M-%S")
     wandb.init(
         project="state_encoder_3d",
-        name=f"train_planar_cube_ae_state_decoder_{current_time}",
+        name=f"train_planar_cube_state_decoder_{current_time}",
         mode=config.wandb_mode,
         config=vars(config),
     )
@@ -80,27 +62,13 @@ def main():
     else:
         device = torch.device("cpu")
     print(f"Using device {device}")
-
-    dataset = PlanarCubeDataset(
-        data_store_path=config.data_path,
-        num_views=1,
+    
+    dataset = PlanarCubeLatentDataset(
+        zarr_path=config.data_path,
     )
     dataloader = iter(
         torch.utils.data.DataLoader(dataset, batch_size=config.batch_size)
     )
-
-    encoder = CompNeRFStateEncoder(
-        out_ch=config.latent_dim,
-        in_ch=3,
-        resnet_out_dim=config.resnet_out_dim,
-    ).to(device)
-    set_requires_grad(encoder, requires_grad=False)
-    nerf = LatentNeRF(latent_ch=config.latent_dim).to(device)
-    set_requires_grad(nerf, requires_grad=False)
-
-    # Load model weights
-    load(encoder, config.encoder_ckpt_path, device)
-    load(nerf, config.nerf_ckpt_path, device)
 
     env_state_decoder = ReluMLP(
         in_ch=config.latent_dim,
@@ -115,23 +83,18 @@ def main():
     mse = lambda x, y: torch.mean((x - y) ** 2)
 
     for step in tqdm(range(config.num_steps)):
-        model_input = next(dataloader)
-        c2w = model_input["cam2world"].to(device)
-        gt_image = model_input["rgb"].to(device)
-        gt_env_state = model_input["env_state"].to(device)
+        latents, gt_states = next(dataloader)
+        latents = latents.to(device)
+        gt_states = gt_states.to(device)
 
-        encoder_input = gt_image.view(
-            config.batch_size, 1, config.img_res[0], config.img_res[1], 3
-        ).permute(0, 1, 4, 2, 3)
-        encoder_input_dict = {
-            "images": encoder_input,
-            "extrinsics": c2w,
-        }
-        latents = encoder(encoder_input_dict)  # Shape (B,D)
+        # Have multiple latents for each state
+        latents = latents[
+            :, torch.randint(low=0, high=latents.shape[1], size=(1,)).item(), :
+        ].squeeze(1)
 
-        env_state = env_state_decoder(latents)
+        states = env_state_decoder(latents)
 
-        loss: torch.Tensor = mse(env_state, gt_env_state)
+        loss: torch.Tensor = mse(states, gt_states)
         wandb.log({"loss": loss.item()})
 
         decoder_optim.zero_grad()
@@ -141,8 +104,8 @@ def main():
         if not step % config.steps_til_summary:
             print(
                 f"Step {step}: loss = {loss.item():.5f}; "
-                + f"predicted_env_state:\n{env_state.detach().cpu()[0]}; gt_env_state:\n"
-                + f"{gt_env_state.detach().cpu()[0]}"
+                + f"predicted_state:\n{states.detach().cpu()[0]}; gt_states:\n"
+                + f"{gt_states.detach().cpu()[0]}"
             )
 
             # Remove old checkpoints
