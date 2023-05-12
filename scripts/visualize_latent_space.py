@@ -124,6 +124,7 @@ def main():
     tsne_results = tsne.fit_transform(df[feat_cols].values)
     df["tsne-2d-one"] = tsne_results[:, 0]
     df["tsne-2d-two"] = tsne_results[:, 1]
+    print(f"KL divergence after optimization: {tsne.kl_divergence_}")
 
     fig = plt.figure(figsize=(16, 10))
     sns.scatterplot(
@@ -148,6 +149,7 @@ def main():
     tsne_pca_results = tsne.fit_transform(pca_result_50)
     df["tsne-pca50-one"] = tsne_pca_results[:, 0]
     df["tsne-pca50-two"] = tsne_pca_results[:, 1]
+    print(f"KL divergence after optimization: {tsne.kl_divergence_}")
 
     fig = plt.figure(figsize=(16, 10))
     sns.scatterplot(
