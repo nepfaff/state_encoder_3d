@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
     data_path = args.data
     run_name = args.name
-
+    
     # Number of states is limited by distinct colors in color palette
     num_states = 15
     color_palette = "tab20"
@@ -163,6 +163,28 @@ def main():
     plt.title("TSNE on 50 dimensions (2 components)")
     wandb.log({"tsne_50_dim_first_2_components": wandb.Image(fig)})
     plt.close()
+
+    # Collect KL-Divergence after TSNE optimization data
+    kl_divergences = [tsne.kl_divergence_]
+    for _ in range(9):
+        tsne = TSNE(n_components=2, n_iter=5000)
+        tsne_pca_results = tsne.fit_transform(pca_result_50)
+        kl_divergences.append(tsne.kl_divergence_)
+    mean_kl_divergence = np.mean(kl_divergences)
+    print(f"Mean KL divergence after optimization: {mean_kl_divergence}")
+    wandb.log(
+        {
+            "kl_divergence_after_optimization": wandb.Table(
+                data=[
+                    ["mean", mean_kl_divergence],
+                    ["std", np.std(kl_divergences)],
+                    ["min", np.min(kl_divergences)],
+                    ["max", np.max(kl_divergences)],
+                ],
+                columns=["metric", "value"]
+            )
+        }
+    )
 
 
 if __name__ == "__main__":
