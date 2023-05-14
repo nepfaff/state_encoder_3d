@@ -44,11 +44,13 @@ class PlanarCubeEnvironment:
         scene_directive_path: str,
         min_pos: float = -4.5,
         max_pos: float = 4.5,
+        use_eval_cameras: bool = False,
     ):
         self._time_step = time_step
         self._scene_directive_path = scene_directive_path
         self._min_pos = min_pos
         self._max_pos = max_pos
+        self._use_eval_cameras = use_eval_cameras
 
         # Camera intrinsics
         self._camera_info = CameraInfo(width=64, height=64, fov_y=np.pi / 3.0)
@@ -117,11 +119,19 @@ class PlanarCubeEnvironment:
                 ),
             )
 
-        X_CW = generate_camera_poses(
-            z_distances=[6.0, 8.0, 10, 12.0],
-            radii=[12.0, 8.0, 4.0, 0.0],
-            num_poses=[10, 10, 5, 1],
-        )
+        if self._use_eval_cameras:
+            X_CW = generate_camera_poses(
+                z_distances=[7.0, 10],
+                radii=[11.0, 4.0],
+                num_poses=[8, 3],
+            )
+        else:
+            X_CW = generate_camera_poses(
+                z_distances=[6.0, 8.0, 10, 12.0],
+                radii=[12.0, 8.0, 4.0, 0.0],
+                num_poses=[10, 10, 5, 1],
+            )
+
         # The planar cube env already contains one camera
         self._add_cameras(
             camera_poses=X_CW, camera_info=self._camera_info, starting_cam_idx=0

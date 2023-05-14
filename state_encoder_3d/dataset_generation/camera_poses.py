@@ -17,7 +17,7 @@ def generate_camera_locations_circle(
     :param xz: Whether the circle is on the xz or xy plane.
     :return: Camera locations of shape (num_points, 3).
     """
-    angles = np.linspace(0.0, 2.0 * np.pi, num_points)
+    angles = np.linspace(0.0, 2.0 * np.pi, num_points, endpoint=False)
     camera_locations = (
         np.vstack(
             [radius * np.sin(angles), np.zeros_like(angles), radius * np.cos(angles)]

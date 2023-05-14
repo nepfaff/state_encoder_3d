@@ -5,6 +5,7 @@ def main():
     env = PlanarCubeEnvironment(
         time_step=1e-3,
         scene_directive_path="models/planar_cube.dmd.yaml",
+        use_eval_cameras=False,
     )
     # env.generate_sample_dataset("data/planar_cube_sample.zarr", 1000)
     env.generate_grid_dataset("data/planar_cube_grid_depth.zarr")
