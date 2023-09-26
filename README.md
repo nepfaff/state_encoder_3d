@@ -1,4 +1,4 @@
-# 3D State Encoder
+# 3D Neural Scene Representations for View-Invariant State Representation Learning
 
 My course project for MIT's [Advances in Computer Vision](http://6.8300.csail.mit.edu/sp23/) class.
 
